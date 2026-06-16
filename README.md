@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ÖdeAl Akıllı POS — Launch MVP
 
-## Getting Started
+End-to-end marcom prototype for a physical POS product launch: **landing page → lead capture → scoring → internal dashboard**. Built for the Digital Marketing Engineer case study.
 
-First, run the development server:
+**Live demo:** https://odeal-pos-launch-mvp.vercel.app
+**Dashboard:** https://odeal-pos-launch-mvp.vercel.app/dashboard — password: `odeal2026`
+
+> ⚠️ Demo / case-study project. Not affiliated with ÖdeAl; uses mock data.
+
+---
+
+## What's inside
+
+| Layer | Route | What it does |
+|---|---|---|
+| Landing page | `/` | Responsive LP, two CTAs, GTM + GA4 tracking |
+| Self-serve flow | `/basvur` | 3-step online application (higher-intent lead) |
+| Sales-contact flow | `/iletisim` | Short "call me back" form (lower-friction lead) |
+| Lead API | `/api/leads` | `POST` create + score, `GET` list |
+| Metrics API | `/api/metrics` | Aggregations for the dashboard |
+| Dashboard | `/dashboard` | 5 KPIs, charts, filterable lead table (marcom team) |
+
+**The hybrid acquisition model** (the core of the brief) is implemented as two physically separate flows so each lead carries a `flowType` the sales team and scoring engine can act on. See [DECISIONS.md](DECISIONS.md) D-004.
+
+## Stack
+
+- **Next.js 16** (App Router) + **TypeScript** — LP, API, and dashboard in one deployable repo
+- **Prisma 7** + **libSQL adapter** — **Turso** (cloud SQLite) in prod, local `file:` SQLite in dev
+- **Tailwind CSS v4**, **Recharts** for dashboard charts
+- **Vercel** deploy, **GTM** (client) + **GA4 Measurement Protocol** (server) for tracking
+
+Every architecture choice — and the trade-off behind it — is documented in **[DECISIONS.md](DECISIONS.md)**. The one-page summary is **[ONE-PAGER.md](ONE-PAGER.md)**.
+
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install                 # postinstall runs `prisma generate`
+cp .env.example .env        # fill in Turso creds, OR use the file: line for local SQLite
+npm run seed                # creates 60 mock leads
+npm run dev                 # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+To run fully offline, set `DATABASE_URL="file:./dev.db"` in `.env` (no token needed), then `npm run seed`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Lead scoring
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Rule-based 0–100 score, computed on every submission in [lib/scoring.ts](lib/scoring.ts). Chosen over ML because it's explainable to the marcom team and works on day one with zero historical data. The exact insertion point for an LLM-based boost (parsing the free-text `notes` field for urgency) is documented in DECISIONS.md D-005.
 
-## Learn More
+## Tracking
 
-To learn more about Next.js, take a look at the following resources:
+Two layers (DECISIONS.md D-006):
+- **Client-side via GTM `dataLayer`** — `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit`
+- **Server-side via GA4 Measurement Protocol** — `lead_created`, fired from the API after the DB write so ad blockers can't drop the conversion event
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Both run in **demo mode** (events log to console) until the GTM/GA4 env vars are set — see `.env.example`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Connected to Vercel with auto-deploy on push to `main`. Production needs `DATABASE_URL` + `DATABASE_AUTH_TOKEN` set in the Vercel project (Settings → Environment Variables).
