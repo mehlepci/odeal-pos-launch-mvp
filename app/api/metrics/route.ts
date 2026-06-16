@@ -7,7 +7,7 @@ export async function GET() {
   const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000)
   const fourteenDaysAgo = new Date(now - 14 * 24 * 60 * 60 * 1000)
 
-  const [total, recentLeads, byFlow, byScore, bySource, thisWeek, lastWeek] = await Promise.all([
+  const [total, recentLeads, byFlow, byScore, bySource, byIndustry, avgScore, thisWeek, lastWeek] = await Promise.all([
     prisma.lead.count(),
 
     // Fetch raw leads for the last 30 days — we aggregate by day in JS
@@ -28,6 +28,16 @@ export async function GET() {
       take: 6,
     }),
 
+    // İşletme (business) breakdown: how many leads per sector AND how well they
+    // score on average — this is what makes the point system legible in the UI.
+    prisma.lead.groupBy({
+      by: ['industry'],
+      _count: { _all: true },
+      _avg: { score: true },
+    }),
+
+    prisma.lead.aggregate({ _avg: { score: true } }),
+
     prisma.lead.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
     prisma.lead.count({ where: { createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
   ])
@@ -40,5 +50,24 @@ export async function GET() {
   }
   const daily = Object.entries(dailyMap).map(([date, count]) => ({ date, count }))
 
-  return NextResponse.json({ total, thisWeek, lastWeek, byFlow, byScore, bySource, daily })
+  // Shape industry rows: sort by volume desc, round the average score.
+  const industry = byIndustry
+    .map((i) => ({
+      industry: i.industry ?? 'Belirtilmemiş',
+      count: i._count._all,
+      avgScore: Math.round(i._avg.score ?? 0),
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  return NextResponse.json({
+    total,
+    thisWeek,
+    lastWeek,
+    avgScore: Math.round(avgScore._avg.score ?? 0),
+    byFlow,
+    byScore,
+    bySource,
+    industry,
+    daily,
+  })
 }

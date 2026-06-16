@@ -6,13 +6,13 @@
 // Auth: simple client-side password gate. MVP tradeoff — see D-007.
 // Data: fetched via useEffect from /api/leads and /api/metrics.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import Link from 'next/link'
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { scoreBadgeClass } from '@/lib/scoring'
+import { scoreBadgeClass, explainScore, SCORING_RULES } from '@/lib/scoring'
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -22,6 +22,7 @@ interface Lead {
   email: string
   phone: string | null
   company: string | null
+  companySize: string | null
   industry: string | null
   flowType: string
   utmSource: string | null
@@ -34,9 +35,11 @@ interface Metrics {
   total: number
   thisWeek: number
   lastWeek: number
+  avgScore: number
   byFlow: { flowType: string; _count: { _all: number } }[]
   byScore: { scoreLabel: string; _count: { _all: number } }[]
   bySource: { utmSource: string | null; _count: { _all: number } }[]
+  industry: { industry: string; count: number; avgScore: number }[]
   daily: { date: string; count: number }[]
 }
 
@@ -127,6 +130,7 @@ export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [filter, setFilter] = useState<'ALL' | 'SELF_SERVE' | 'SALES_CONTACT'>('ALL')
   const [scoreFilter, setScoreFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -167,6 +171,10 @@ export default function DashboardPage() {
     name: s.utmSource ?? 'direct',
     count: s._count._all,
   }))
+
+  // İşletme analizi: leads per industry + their average score, highest volume first.
+  const industryData = metrics?.industry ?? []
+  const maxIndustryCount = Math.max(1, ...industryData.map((i) => i.count))
 
   const BAR_COLORS = ['#1e40af', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']
 
@@ -303,6 +311,69 @@ export default function DashboardPage() {
               </div>
             </div>
 
+            {/* ── İşletme & Skor Analizi ── */}
+            <div className="grid lg:grid-cols-3 gap-6 mb-8">
+
+              {/* Industry breakdown with average score — makes the point system legible */}
+              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-baseline justify-between mb-4">
+                  <h2 className="text-sm font-bold text-gray-700">Sektöre Göre İşletmeler & Ortalama Skor</h2>
+                  <span className="text-xs text-gray-400">Genel ort. skor: <strong className="text-blue-900">{metrics?.avgScore ?? 0}</strong></span>
+                </div>
+                {industryData.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {industryData.map((row) => {
+                      const label = row.avgScore >= 70 ? 'HIGH' : row.avgScore >= 40 ? 'MEDIUM' : 'LOW'
+                      return (
+                        <div key={row.industry} className="flex items-center gap-3 text-sm">
+                          <span className="w-28 shrink-0 text-gray-600 truncate" title={row.industry}>{row.industry}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-5 relative overflow-hidden">
+                            <div
+                              className="h-full bg-blue-500/80 rounded-full"
+                              style={{ width: `${(row.count / maxIndustryCount) * 100}%` }}
+                            />
+                            <span className="absolute inset-y-0 left-2 flex items-center text-xs font-semibold text-gray-700">
+                              {row.count}
+                            </span>
+                          </div>
+                          <span className={`w-20 shrink-0 text-center px-2 py-0.5 rounded-full text-xs font-bold ${scoreBadgeClass(label)}`}>
+                            ⌀ {row.avgScore}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    <p className="text-xs text-gray-400 pt-2">
+                      Yüksek hacimli sektörler (restoran, market, kafe…) +25 puan alır — bu yüzden ortalama skorları daha yüksek.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="h-44 flex items-center justify-center text-gray-300 text-sm">Henüz veri yok</div>
+                )}
+              </div>
+
+              {/* Scoring legend — the rule set, always in sync with lib/scoring.ts */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h2 className="text-sm font-bold text-gray-700 mb-1">Puanlama Sistemi</h2>
+                <p className="text-xs text-gray-400 mb-4">Her lead 0–100 arası puanlanır</p>
+                <div className="space-y-2">
+                  {SCORING_RULES.map((rule) => (
+                    <div key={rule.label} className="flex items-center justify-between gap-2" title={rule.reason}>
+                      <span className="text-xs text-gray-600">{rule.label}</span>
+                      <span className="text-xs font-bold text-blue-900 whitespace-nowrap">+{rule.points}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-gray-100 mt-4 pt-3 flex flex-wrap gap-1.5 text-xs">
+                  <span className="px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-800">HIGH ≥ 70</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold bg-yellow-100 text-yellow-800">MED 40–69</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-800">LOW &lt; 40</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-3">
+                  Tablodaki bir lead&apos;e tıklayın → o lead&apos;in puan kırılımını görün.
+                </p>
+              </div>
+            </div>
+
             {/* ── Lead Table ── */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
@@ -355,40 +426,86 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead) => (
-                        <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 pr-4">
-                            <div className="font-semibold text-gray-800">{lead.name}</div>
-                            <div className="text-xs text-gray-400">{lead.email}</div>
-                          </td>
-                          <td className="py-3 pr-4 hidden md:table-cell text-gray-600">
-                            {lead.company ?? '—'}
-                          </td>
-                          <td className="py-3 pr-4 hidden sm:table-cell text-gray-500 text-xs">
-                            {lead.industry ?? '—'}
-                          </td>
-                          <td className="py-3 pr-4">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
-                              ${lead.flowType === 'SELF_SERVE'
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-100 text-gray-600'}`}>
-                              {lead.flowType === 'SELF_SERVE' ? 'Self-Serve' : 'Arayalım'}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4">
-                            <div className="flex items-center gap-2">
-                              <ScoreBadge label={lead.scoreLabel} />
-                              <span className="text-xs text-gray-400">{lead.score}</span>
-                            </div>
-                          </td>
-                          <td className="py-3 pr-4 hidden lg:table-cell text-gray-400 text-xs">
-                            {lead.utmSource ?? 'direct'}
-                          </td>
-                          <td className="py-3 text-xs text-gray-400">
-                            {new Date(lead.createdAt).toLocaleDateString('tr-TR')}
-                          </td>
-                        </tr>
-                      ))
+                      filteredLeads.map((lead) => {
+                        const isOpen = expandedId === lead.id
+                        const breakdown = explainScore({
+                          phone: lead.phone,
+                          company: lead.company,
+                          companySize: lead.companySize,
+                          industry: lead.industry,
+                          flowType: lead.flowType as 'SELF_SERVE' | 'SALES_CONTACT',
+                        })
+                        return (
+                          <Fragment key={lead.id}>
+                            <tr
+                              onClick={() => setExpandedId(isOpen ? null : lead.id)}
+                              className={`border-b border-gray-50 hover:bg-blue-50/40 transition-colors cursor-pointer ${isOpen ? 'bg-blue-50/40' : ''}`}
+                            >
+                              <td className="py-3 pr-4">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`text-gray-300 text-[10px] transition-transform ${isOpen ? 'rotate-90' : ''}`}>▶</span>
+                                  <div>
+                                    <div className="font-semibold text-gray-800">{lead.name}</div>
+                                    <div className="text-xs text-gray-400">{lead.email}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4 hidden md:table-cell text-gray-600">
+                                {lead.company ?? '—'}
+                              </td>
+                              <td className="py-3 pr-4 hidden sm:table-cell text-gray-500 text-xs">
+                                {lead.industry ?? '—'}
+                              </td>
+                              <td className="py-3 pr-4">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
+                                  ${lead.flowType === 'SELF_SERVE'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : 'bg-gray-100 text-gray-600'}`}>
+                                  {lead.flowType === 'SELF_SERVE' ? 'Self-Serve' : 'Arayalım'}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4">
+                                <div className="flex items-center gap-2">
+                                  <ScoreBadge label={lead.scoreLabel} />
+                                  <span className="text-xs text-gray-400">{lead.score}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4 hidden lg:table-cell text-gray-400 text-xs">
+                                {lead.utmSource ?? 'direct'}
+                              </td>
+                              <td className="py-3 text-xs text-gray-400">
+                                {new Date(lead.createdAt).toLocaleDateString('tr-TR')}
+                              </td>
+                            </tr>
+                            {isOpen && (
+                              <tr className="bg-blue-50/40 border-b border-gray-100">
+                                <td colSpan={7} className="px-4 py-4">
+                                  <div className="text-xs font-semibold text-gray-500 mb-2">
+                                    Skor kırılımı — neden {lead.score} puan?
+                                  </div>
+                                  {breakdown.contributions.length > 0 ? (
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {breakdown.contributions.map((c, i) => (
+                                        <span key={i} className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs">
+                                          <span className="text-gray-600">{c.label}</span>
+                                          <span className="font-bold text-green-700">+{c.points}</span>
+                                        </span>
+                                      ))}
+                                      <span className="text-xs text-gray-400">=</span>
+                                      <span className="inline-flex items-center gap-1.5 bg-blue-900 text-white rounded-lg px-3 py-1 text-xs font-bold">
+                                        {lead.score} puan
+                                        <ScoreBadge label={lead.scoreLabel} />
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-gray-400">Hiçbir kural eşleşmedi — taban skor 0.</p>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
+                        )
+                      })
                     )}
                   </tbody>
                 </table>
