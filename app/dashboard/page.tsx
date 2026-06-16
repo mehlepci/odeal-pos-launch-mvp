@@ -131,6 +131,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState<'ALL' | 'SELF_SERVE' | 'SALES_CONTACT'>('ALL')
   const [scoreFilter, setScoreFilter] = useState<'ALL' | 'HIGH' | 'MEDIUM' | 'LOW'>('ALL')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -152,6 +153,13 @@ export default function DashboardPage() {
     fetchData()
   }, [authed])
 
+  // Reset to the first page whenever the filters change, so the user isn't
+  // stranded on a page that no longer exists for the new result set.
+  useEffect(() => {
+    setPage(1)
+    setExpandedId(null)
+  }, [filter, scoreFilter])
+
   if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />
 
   // ── Derived values ──
@@ -166,6 +174,13 @@ export default function DashboardPage() {
     const scoreOk = scoreFilter === 'ALL' || l.scoreLabel === scoreFilter
     return flowOk && scoreOk
   })
+
+  // ── Pagination (client-side; dataset is small enough to load in one fetch) ──
+  const PAGE_SIZE = 10
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageStart = (currentPage - 1) * PAGE_SIZE
+  const pagedLeads = filteredLeads.slice(pageStart, pageStart + PAGE_SIZE)
 
   const sourceData = (metrics?.bySource ?? []).map((s) => ({
     name: s.utmSource ?? 'direct',
@@ -426,7 +441,7 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredLeads.map((lead) => {
+                      pagedLeads.map((lead) => {
                         const isOpen = expandedId === lead.id
                         const breakdown = explainScore({
                           phone: lead.phone,
@@ -510,6 +525,45 @@ export default function DashboardPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* ── Pagination ── */}
+              {filteredLeads.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-400">
+                    <strong className="text-gray-600">{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredLeads.length)}</strong>
+                    {' '}/ {filteredLeads.length} lead gösteriliyor
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => { setPage(currentPage - 1); setExpandedId(null) }}
+                      disabled={currentPage === 1}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      ← Önceki
+                    </button>
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => { setPage(i + 1); setExpandedId(null) }}
+                        className={`text-xs font-semibold w-8 h-8 rounded-lg transition-colors ${
+                          currentPage === i + 1
+                            ? 'bg-blue-900 text-white'
+                            : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => { setPage(currentPage + 1); setExpandedId(null) }}
+                      disabled={currentPage === totalPages}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Sonraki →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
           </>
