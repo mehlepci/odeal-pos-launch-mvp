@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  company     String?
+  companySize String?
+  industry    String?
+  // "SALES_CONTACT" = user wants a callback | "SELF_SERVE" = user applied online
+  flowType    String
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  score       Int      @default(0)
+  scoreLabel  String   @default("LOW")
+  notes       String?
+  createdAt   DateTime @default(now())
+}
