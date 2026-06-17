@@ -2,16 +2,15 @@
 //
 // The rule-based engine (lib/scoring.ts) can't read prose — a note like
 // "POS cihazım bozuldu, acil ihtiyacım var" signals a hot, ready-to-buy lead that
-// no structured field captures. This calls Claude to classify the note's urgency /
-// purchase intent and returns a bounded point boost the API route adds on top of
-// the rule score. The LLM only *classifies*; the points per class are fixed here,
-// so the boost stays explainable and deterministic given the class.
+// no structured field captures. This calls Google Gemini to classify the note's
+// urgency / purchase intent and returns a bounded point boost the API route adds
+// on top of the rule score. The LLM only *classifies*; the points per class are
+// fixed here, so the boost stays explainable and deterministic given the class.
 //
-// Degrades gracefully: empty note or missing ANTHROPIC_API_KEY → { points: 0 }.
-
-import Anthropic from '@anthropic-ai/sdk'
-import { z } from 'zod'
-import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
+// Provider note: Gemini (not Claude) — see DECISIONS.md D-010. Uses the REST API
+// directly (no SDK) with structured JSON output.
+//
+// Degrades gracefully: empty note or missing GEMINI_API_KEY → { points: 0 }.
 
 export interface AiBoost {
   points: number
@@ -22,15 +21,9 @@ export interface AiBoost {
 // class; we own the points). Capped well below the rule weights so AI augments,
 // never dominates, the score.
 const URGENCY_POINTS = { none: 0, low: 10, high: 20 } as const
+type Urgency = keyof typeof URGENCY_POINTS
 
-const UrgencySchema = z.object({
-  urgency: z
-    .enum(['none', 'low', 'high'])
-    .describe('Notun satın alma niyeti / aciliyet seviyesi'),
-  reason: z
-    .string()
-    .describe('Tek cümlelik, kısa Türkçe gerekçe (en fazla 12 kelime)'),
-})
+const MODEL = 'gemini-2.0-flash'
 
 const SYSTEM_PROMPT = `Sen bir fiziki POS satış ekibi için lead skorlama asistanısın.
 Sana bir potansiyel müşterinin iletişim formuna yazdığı serbest-metin not verilecek.
@@ -38,29 +31,54 @@ Notu, satın alma niyeti ve aciliyet açısından sınıflandır:
 - "high": Acil ihtiyaç, mevcut POS bozuk/yetersiz, hemen geçiş isteği, fiyat/kurulum sorusu ("POS'um bozuldu acil", "bu hafta başlamam lazım").
 - "low": Genel ilgi, karşılaştırma, ileri tarihli plan ("araştırıyorum", "ilerde lazım olabilir").
 - "none": Aciliyet/niyet sinyali yok, alakasız ya da boş içerikli not.
-Yalnızca nottaki kanıta dayan; abartma. Gerekçeyi kısa ve Türkçe yaz.`
+Yalnızca nottaki kanıta dayan; abartma. Gerekçeyi kısa ve Türkçe yaz (en fazla 12 kelime).`
 
 export async function aiScoreBoost(notes?: string | null): Promise<AiBoost> {
   const note = notes?.trim()
-  if (!note || !process.env.ANTHROPIC_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!note || !apiKey) {
     return { points: 0, reason: '' }
   }
 
   try {
-    const client = new Anthropic()
-    const response = await client.messages.parse({
-      model: 'claude-opus-4-8',
-      max_tokens: 256,
-      thinking: { type: 'disabled' }, // simple classification — skip thinking for latency
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: `Not: """${note}"""` }],
-      output_config: { format: zodOutputFormat(UrgencySchema) },
-    })
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: [{ text: `Not: """${note}"""` }] }],
+          generationConfig: {
+            temperature: 0,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'object',
+              properties: {
+                urgency: { type: 'string', enum: ['none', 'low', 'high'] },
+                reason: { type: 'string' },
+              },
+              required: ['urgency', 'reason'],
+            },
+          },
+        }),
+      }
+    )
 
-    const parsed = response.parsed_output
-    if (!parsed) return { points: 0, reason: '' }
+    if (!res.ok) {
+      console.error(`[ai-scoring] Gemini error: ${res.status} ${await res.text()}`)
+      return { points: 0, reason: '' }
+    }
 
-    return { points: URGENCY_POINTS[parsed.urgency], reason: parsed.reason }
+    const data = await res.json()
+    const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) return { points: 0, reason: '' }
+
+    const parsed = JSON.parse(text) as { urgency?: string; reason?: string }
+    const urgency = (parsed.urgency ?? 'none') as Urgency
+    if (!(urgency in URGENCY_POINTS)) return { points: 0, reason: '' }
+
+    return { points: URGENCY_POINTS[urgency], reason: parsed.reason ?? '' }
   } catch (err) {
     // Never let scoring fail the lead capture — log and fall back to no boost.
     console.error('[ai-scoring] boost failed:', err)
