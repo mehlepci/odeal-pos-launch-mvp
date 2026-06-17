@@ -28,6 +28,9 @@ interface Lead {
   utmSource: string | null
   score: number
   scoreLabel: string
+  notes: string | null
+  aiScore: number
+  aiReason: string | null
   createdAt: string
 }
 
@@ -498,7 +501,7 @@ export default function DashboardPage() {
                                   <div className="text-xs font-semibold text-gray-500 mb-2">
                                     Skor kırılımı — neden {lead.score} puan?
                                   </div>
-                                  {breakdown.contributions.length > 0 ? (
+                                  {breakdown.contributions.length > 0 || lead.aiScore > 0 ? (
                                     <div className="flex flex-wrap items-center gap-2">
                                       {breakdown.contributions.map((c, i) => (
                                         <span key={i} className="inline-flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2.5 py-1 text-xs">
@@ -506,6 +509,12 @@ export default function DashboardPage() {
                                           <span className="font-bold text-green-700">+{c.points}</span>
                                         </span>
                                       ))}
+                                      {lead.aiScore > 0 && (
+                                        <span className="inline-flex items-center gap-1 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1 text-xs">
+                                          <span className="text-purple-700">🤖 AI aciliyet sinyali</span>
+                                          <span className="font-bold text-purple-700">+{lead.aiScore}</span>
+                                        </span>
+                                      )}
                                       <span className="text-xs text-gray-400">=</span>
                                       <span className="inline-flex items-center gap-1.5 bg-blue-900 text-white rounded-lg px-3 py-1 text-xs font-bold">
                                         {lead.score} puan
@@ -514,6 +523,16 @@ export default function DashboardPage() {
                                     </div>
                                   ) : (
                                     <p className="text-xs text-gray-400">Hiçbir kural eşleşmedi — taban skor 0.</p>
+                                  )}
+
+                                  {lead.notes && (
+                                    <div className="mt-3 text-xs">
+                                      <span className="font-semibold text-gray-500">Not: </span>
+                                      <span className="text-gray-600 italic">“{lead.notes}”</span>
+                                      {lead.aiReason && (
+                                        <span className="ml-2 text-purple-600">→ 🤖 {lead.aiReason}</span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                               </tr>

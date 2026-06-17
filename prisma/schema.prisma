@@ -23,5 +23,9 @@ model Lead {
   score       Int      @default(0)
   scoreLabel  String   @default("LOW")
   notes       String?
+  // AI-derived urgency boost from the free-text notes (lib/ai-scoring.ts).
+  // 0 when there's no note or no API key. aiReason holds the LLM's one-line rationale.
+  aiScore     Int      @default(0)
+  aiReason    String?
   createdAt   DateTime @default(now())
 }

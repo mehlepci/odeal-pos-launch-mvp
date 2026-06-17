@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { scoreLead } from '@/lib/scoring'
+import { scoreLead, labelForScore } from '@/lib/scoring'
+import { aiScoreBoost } from '@/lib/ai-scoring'
 import { trackServerEvent } from '@/lib/ga4'
 
 export async function POST(req: NextRequest) {
@@ -11,13 +12,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'name, email ve flowType zorunludur' }, { status: 400 })
   }
 
-  const { score, label } = scoreLead({ phone, company, companySize, industry, flowType })
+  // Rule-based score first, then an AI boost from the free-text note (if any).
+  const rule = scoreLead({ phone, company, companySize, industry, flowType })
+  const ai = await aiScoreBoost(notes)
+  const score = Math.min(rule.score + ai.points, 100)
+  const scoreLabel = labelForScore(score)
 
   const lead = await prisma.lead.create({
     data: {
       name, email, phone, company, companySize, industry,
       flowType, utmSource, utmMedium, utmCampaign,
-      score, scoreLabel: label, notes,
+      score, scoreLabel, notes,
+      aiScore: ai.points, aiReason: ai.reason || null,
     },
   })
 
@@ -25,11 +31,12 @@ export async function POST(req: NextRequest) {
   await trackServerEvent('lead_created', {
     flow_type: flowType,
     score,
+    ai_score: ai.points,
     industry: industry ?? 'unknown',
     source: utmSource ?? 'direct',
   })
 
-  return NextResponse.json({ success: true, leadId: lead.id, score, scoreLabel: label })
+  return NextResponse.json({ success: true, leadId: lead.id, score, scoreLabel })
 }
 
 export async function GET() {

@@ -39,7 +39,9 @@ export const SCORING_RULES: { label: string; points: number; reason: string }[] 
   { label: 'Firma adı verildi', points: 15, reason: 'Kurumsal bir işletme, sadece meraklı değil' },
 ]
 
-function labelFor(score: number): ScoreLabel {
+// Maps a final score to its label. Exported so the API route can re-label after
+// adding the async AI boost (lib/ai-scoring.ts) on top of the rule-based score.
+export function labelForScore(score: number): ScoreLabel {
   return score >= SCORE_THRESHOLDS.HIGH ? 'HIGH' : score >= SCORE_THRESHOLDS.MEDIUM ? 'MEDIUM' : 'LOW'
 }
 
@@ -75,7 +77,7 @@ export function explainScore(input: LeadInput): {
     contributions.push({ label: 'Firma adı verildi', points: 15 })
 
   const score = Math.min(contributions.reduce((sum, c) => sum + c.points, 0), 100)
-  return { score, label: labelFor(score), contributions }
+  return { score, label: labelForScore(score), contributions }
 }
 
 export function scoreLead(input: LeadInput): { score: number; label: ScoreLabel } {
