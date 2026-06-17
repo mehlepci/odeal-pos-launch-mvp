@@ -111,11 +111,11 @@ An LLM (e.g., Claude API) could analyze the free-text "notes" field from the sal
 **Layer 2 — Server-side via GA4 Measurement Protocol:**
 - Event: `lead_created` sent from the API route after a lead is saved to the database
 - Why server-side: Ad blockers block client-side GA4. The Measurement Protocol sends directly to Google's servers — conversion data is 20–30% more complete than client-side only.
-- In dev/demo: logs to console instead of sending (no API key needed to demo the flow).
+- **Live, not mocked:** the production app sends real `lead_created` events to a live GA4 property (`G-QLMSTSMK49`), verifiable in GA4 DebugView. `engagement_time_msec` makes them count in Realtime/standard reports; an env-gated `GA4_DEBUG_MODE` surfaces them in DebugView for demos without polluting production reporting. If the env vars are unset (e.g. a fork without keys), it gracefully falls back to console logging so the flow still runs.
 
 **Trade-off considered:** Server-side only (CAPI) vs. client-side only vs. hybrid. Hybrid is the industry best practice because client-side gives real-time page metrics while server-side captures reliable conversion events.
 
-**Presentation note:** "This two-layer setup is what a proper marcom stack looks like. Client-side for page-level events, server-side for conversion events that must not be lost to ad blockers."
+**Presentation note:** "This two-layer setup is what a proper marcom stack looks like. Client-side for page-level events, server-side for conversion events that must not be lost to ad blockers — and it's live: submit a form and watch the event land in GA4 DebugView."
 
 ---
 
@@ -172,7 +172,7 @@ The brief explicitly asks to call out where AI was used. Two distinct places:
 
 ## What I'd do in the next iteration
 
-1. **Real GA4 + Meta CAPI integration** — add the actual API keys and test in GA4 DebugView
+1. **Meta CAPI + Google Ads conversion import** — GA4 server-side is already live (DebugView-verified); next is forwarding `lead_created` to Meta Conversions API and importing conversions into Google Ads for closed-loop ad optimization
 2. **Lead → CRM handoff** — POST to HubSpot or Salesforce when a lead is created, so sales team doesn't need to check the dashboard
 3. **Lead status workflow** — add `status` field (NEW → CONTACTED → QUALIFIED → CONVERTED) so the dashboard becomes an actual pipeline tracker
 4. **A/B test CTA copy** — "Hemen Başvur" vs "Ücretsiz Dene" — GTM is already set up to track which converts better

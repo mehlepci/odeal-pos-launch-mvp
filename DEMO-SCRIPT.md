@@ -13,7 +13,7 @@
 
 ## 2:00–7:00 · Landing Page & İki Akış (canlı)
 - LP'yi gez: hero, iki CTA — **"Hemen Başvur"** (self-serve) vs **"Sizi Arayalım"** (sales). Responsive olduğunu göster (pencereyi daralt).
-- DevTools → Console aç: bir CTA'ya tıkla → `cta_click` event'inin `dataLayer`'a düştüğünü göster. *"Demo modunda GTM container'a bağlı değil; ID env'e girilince aynı event'ler GA4/Meta/Google Ads'e GTM üzerinden, kod deploy etmeden gider."*
+- DevTools → Console aç: bir CTA'ya tıkla → `cta_click` event'inin `dataLayer`'a düştüğünü göster. *"Client tarafı GTM `dataLayer`'a yazıyor; container ID env'e girilince aynı event'ler GA4/Meta/Google Ads'e GTM üzerinden, kod deploy etmeden gider. Server tarafı ise — birazdan göstereceğim — şu an canlı, gerçek GA4'e gidiyor."*
 - **`/basvur`**: 3 adımlı form — her adımda `form_step_complete` event'i (akış başına drop-off ölçmek için). Son adımı doldur, **Başvur**.
 - **`/iletisim`**: kısa form (düşük friction, amaç telefon yakalamak). Notes alanına *"POS'um bozuldu acil"* yaz — bu, AI scoring iterasyonu için köprü.
 
@@ -21,6 +21,7 @@
 - `app/api/leads/route.ts`: POST → validate → `scoreLead()` → Prisma ile DB'ye yaz → **server-side** `lead_created` GA4 event'i.
 - `lib/scoring.ts`: kural tablosunu göster (self-serve +25, yüksek-değer sektör +25, telefon +15…). *"ML değil çünkü ilk gün 0 conversion verimiz var ve marcom ekibine HIGH/MEDIUM/LOW'u açıklayabilmem lazım."*
 - **İki katman tracking** (DECISIONS D-006): client GTM = sayfa event'leri, server GA4 = conversion (ad-blocker'a dayanıklı).
+- **⭐ CANLI GA4 ANI:** Yan ekranda **GA4 → Admin → DebugView** açık olsun. Az önce `/basvur`'dan gönderdiğin lead'in `lead_created` event'i, `flow_type` / `score` / `industry` parametreleriyle DebugView'da belirir. *"Bu mock değil — gerçek GA4 property'sine, server-side Measurement Protocol ile gidiyor. Form gönderildi, conversion Google'da."* (Property `G-QLMSTSMK49`.)
 - DB: Prisma 7 + libSQL adapter, prod'da **Turso** (bulut SQLite). *"Lokalde `file:`, prod'da `libsql://` — tek satır."*
 
 ## 11:00–16:00 · Dashboard (canlı)
@@ -33,7 +34,7 @@
 ## 16:00–19:00 · Trade-off'lar & Sonraki İterasyon
 - En savunulabilir 3 trade-off: Turso vs Postgres, kural vs ML scoring, hybrid tracking.
 - AI kullanımı: (1) bu MVP'yi Claude ile hızlı yazdım, (2) üründe `aiScoreBoost(notes)` ile aciliyet sinyali — entegrasyon noktası kodda hazır.
-- Sonraki adım (öncelik sırası): **CRM handoff** → lead status pipeline → gerçek GA4/Meta CAPI → cost-per-lead → pace göstergesi.
+- Sonraki adım (öncelik sırası): **CRM handoff** → lead status pipeline → Meta CAPI / Google Ads conversion import (GA4 server-side zaten canlı) → cost-per-lead → pace göstergesi.
 
 ## 19:00–20:00 · Kapanış
 - *"4 günde mükemmellik değil, uçtan uca çalışan MVP hedefledim: gerçek bir lead şu an Turso'da, dashboard'da, skoruyla. Her kararın 'neden'i DECISIONS.md'de."*

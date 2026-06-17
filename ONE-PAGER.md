@@ -24,7 +24,7 @@ Karma müşteri kazanım modeli: bazı KOBİ'ler satış ekibiyle konuşmak, baz
 | sessionStorage şifre | NextAuth/OAuth | 5 kişilik iç araç; 4 günün %20'sini auth'a harcamaya değmez |
 
 ### Ölçüm Yaklaşımı
-**İki katmanlı tracking** — Client (GTM `dataLayer`): `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit` (akış başına drop-off ölçer). Server (GA4 Measurement Protocol): `lead_created`, DB yazımından sonra → ad-blocker'a dayanıklı conversion. **Dashboard'daki 5 metrik** her biri bir aksiyona bağlı: Toplam Lead (2.500 hedefine pace), Self-serve vs Sizi-Arayalım kırılımı (kanal performansı → reklam hedefleme), HIGH/MEDIUM/LOW kalite dağılımı (vanity volume'ı yakalar), UTM kaynak dağılımı (bütçe yönü), günlük trend (kampanya spike/ölü gün).
+**İki katmanlı tracking** — Client (GTM `dataLayer`): `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit` (akış başına drop-off ölçer). Server (GA4 Measurement Protocol): `lead_created`, DB yazımından sonra → ad-blocker'a dayanıklı conversion. **Server-side katman canlı:** production gerçek bir GA4 property'ye event gönderiyor, DebugView'da doğrulanabilir (form gönder → event saniyeler içinde düşüyor). **Dashboard'daki 5 metrik** her biri bir aksiyona bağlı: Toplam Lead (2.500 hedefine pace), Self-serve vs Sizi-Arayalım kırılımı (kanal performansı → reklam hedefleme), HIGH/MEDIUM/LOW kalite dağılımı (vanity volume'ı yakalar), UTM kaynak dağılımı (bütçe yönü), günlük trend (kampanya spike/ölü gün).
 
 ### AI/LLM Kullanımı
 - **Bu MVP'yi geliştirirken:** Claude (Anthropic) ile kod üretimi, scoring kuralları ve copy taslakları hızlandırıldı; kararlar ve trade-off'lar tarafımca verildi ve DECISIONS.md'de gerekçelendirildi.
@@ -33,6 +33,6 @@ Karma müşteri kazanım modeli: bazı KOBİ'ler satış ekibiyle konuşmak, baz
 ### Bir Sonraki İterasyon
 1. **CRM handoff** — lead oluşunca HubSpot/Salesforce'a POST; satış dashboard'a bakmak zorunda kalmaz.
 2. **Lead status workflow** — `NEW → CONTACTED → QUALIFIED → CONVERTED`; dashboard gerçek pipeline tracker'a döner.
-3. **Gerçek GA4 + Meta CAPI** — anahtarlarla canlı, DebugView'da doğrulama.
+3. **Meta CAPI + Google Ads conversion import** — GA4 server-side zaten canlı (DebugView'da doğrulandı); sıradaki adım `lead_created`'i Meta Conversions API'ye iletmek ve Google Ads'e conversion olarak aktarıp reklam optimizasyonunu kapalı döngüye bağlamak.
 4. **Source bazlı cost-per-lead** — ad platform API'leri ile HIGH lead gönderen kanala bütçe kaydırma.
 5. **Pace göstergesi** — "bu hızla 2.500'e X günde ulaşırsın" — 3 aylık hedefi her gün görünür kılar.

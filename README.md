@@ -52,8 +52,8 @@ Two layers (DECISIONS.md D-006):
 - **Client-side via GTM `dataLayer`** — `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit`
 - **Server-side via GA4 Measurement Protocol** — `lead_created`, fired from the API after the DB write so ad blockers can't drop the conversion event
 
-Both run in **demo mode** (events log to console) until the GTM/GA4 env vars are set — see `.env.example`.
+The server-side GA4 layer is **live in production** — events are sent to a real GA4 property and are verifiable in GA4 DebugView (submit a form, watch `lead_created` appear). It falls back to console logging only when the `GA4_*` env vars are unset (e.g. a local fork without keys). The client-side GTM layer activates when `NEXT_PUBLIC_GTM_ID` is set. See `.env.example`.
 
 ## Deploy
 
-Connected to Vercel with auto-deploy on push to `main`. Production needs `DATABASE_URL` + `DATABASE_AUTH_TOKEN` set in the Vercel project (Settings → Environment Variables).
+Connected to Vercel with auto-deploy on push to `main`. Production env vars (Settings → Environment Variables): `DATABASE_URL` + `DATABASE_AUTH_TOKEN` (Turso), and `GA4_MEASUREMENT_ID` + `GA4_API_SECRET` + `GA4_DEBUG_MODE` for live server-side tracking.
