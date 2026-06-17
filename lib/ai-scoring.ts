@@ -23,7 +23,7 @@ export interface AiBoost {
 const URGENCY_POINTS = { none: 0, low: 10, high: 20 } as const
 type Urgency = keyof typeof URGENCY_POINTS
 
-const MODEL = 'gemini-2.0-flash'
+const MODEL = 'gemini-2.5-flash'
 
 const SYSTEM_PROMPT = `Sen bir fiziki POS satış ekibi için lead skorlama asistanısın.
 Sana bir potansiyel müşterinin iletişim formuna yazdığı serbest-metin not verilecek.
