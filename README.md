@@ -52,7 +52,11 @@ Two layers (DECISIONS.md D-006):
 - **Client-side via GTM `dataLayer`** — `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit`
 - **Server-side via GA4 Measurement Protocol** — `lead_created`, fired from the API after the DB write so ad blockers can't drop the conversion event
 
-The server-side GA4 layer is **live in production** — events are sent to a real GA4 property and are verifiable in GA4 DebugView (submit a form, watch `lead_created` appear). It falls back to console logging only when the `GA4_*` env vars are unset (e.g. a local fork without keys). The client-side GTM layer activates when `NEXT_PUBLIC_GTM_ID` is set. See `.env.example`.
+**Both layers are live in production:**
+- Client-side: a real GTM container (`GTM-P7QJ6PFN`) is loaded and published, routing the `dataLayer` events into GA4 — visible in GA4 Realtime (or DebugView via GTM Preview).
+- Server-side: real `lead_created` events are sent to a live GA4 property and are verifiable in GA4 DebugView (submit a form, watch the event appear).
+
+They fall back to console logging / no-op only when the `GA4_*` / `NEXT_PUBLIC_GTM_ID` env vars are unset (e.g. a local fork without keys). See `.env.example`.
 
 ## Deploy
 

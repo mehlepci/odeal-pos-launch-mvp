@@ -13,7 +13,7 @@
 
 ## 2:00–7:00 · Landing Page & İki Akış (canlı)
 - LP'yi gez: hero, iki CTA — **"Hemen Başvur"** (self-serve) vs **"Sizi Arayalım"** (sales). Responsive olduğunu göster (pencereyi daralt).
-- DevTools → Console aç: bir CTA'ya tıkla → `cta_click` event'inin `dataLayer`'a düştüğünü göster. *"Client tarafı GTM `dataLayer`'a yazıyor; container ID env'e girilince aynı event'ler GA4/Meta/Google Ads'e GTM üzerinden, kod deploy etmeden gider. Server tarafı ise — birazdan göstereceğim — şu an canlı, gerçek GA4'e gidiyor."*
+- DevTools → Console aç: bir CTA'ya tıkla → `cta_click` event'inin `dataLayer`'a düştüğünü göster. *"Client tarafı GTM `dataLayer`'a yazıyor; canlı bir GTM container (`GTM-P7QJ6PFN`) bunları GA4'e iletiyor — GA4 Realtime'da görünüyor. Aynı container'dan Meta Pixel / Google Ads kod deploy etmeden eklenebilir. Server tarafı da — birazdan göstereceğim — gerçek GA4'e gidiyor."*
 - **`/basvur`**: 3 adımlı form — her adımda `form_step_complete` event'i (akış başına drop-off ölçmek için). Son adımı doldur, **Başvur**.
 - **`/iletisim`**: kısa form (düşük friction, amaç telefon yakalamak). Notes alanına *"POS'um bozuldu acil"* yaz — bu, AI scoring iterasyonu için köprü.
 

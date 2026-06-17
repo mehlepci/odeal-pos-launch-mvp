@@ -107,6 +107,7 @@ An LLM (e.g., Claude API) could analyze the free-text "notes" field from the sal
 - Events: `page_view`, `cta_click`, `form_start`, `form_step_complete`, `form_submit`
 - Implementation: `window.dataLayer.push({event, ...params})` — a simple function in `lib/gtm.ts`
 - Why GTM instead of direct GA4: Lets the marcom team add/change tags without a developer deploy. Google Ads, Meta Pixel, and other tools can all be added through GTM without touching code.
+- **Live, not mocked:** a real published GTM container (`GTM-P7QJ6PFN`) loads in production and routes the `dataLayer` events into GA4 (a Google Tag for `page_view` + a single GA4 Event tag forwarding the custom events via a regex Custom Event trigger). Visible in GA4 Realtime, or DebugView under GTM Preview.
 
 **Layer 2 — Server-side via GA4 Measurement Protocol:**
 - Event: `lead_created` sent from the API route after a lead is saved to the database
