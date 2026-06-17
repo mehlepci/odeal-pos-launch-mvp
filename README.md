@@ -44,7 +44,9 @@ To run fully offline, set `DATABASE_URL="file:./dev.db"` in `.env` (no token nee
 
 ## Lead scoring
 
-Rule-based 0–100 score, computed on every submission in [lib/scoring.ts](lib/scoring.ts). Chosen over ML because it's explainable to the marcom team and works on day one with zero historical data. The exact insertion point for an LLM-based boost (parsing the free-text `notes` field for urgency) is documented in DECISIONS.md D-005.
+Rule-based 0–100 score, computed on every submission in [lib/scoring.ts](lib/scoring.ts). Chosen over pure ML because it's explainable to the marcom team and works on day one with zero historical data.
+
+**Live AI layer:** [lib/ai-scoring.ts](lib/ai-scoring.ts) calls Google Gemini (`gemini-2.5-flash`) to read the free-text `notes` field and classify its urgency/purchase-intent, adding a bounded, explainable boost (`none/low/high → +0/+10/+20`) on top of the rule score. The LLM only classifies; the points per class are fixed in code, and the result (`aiScore` + the model's `aiReason`) is shown in the dashboard's score breakdown. Falls back to +0 when there's no note or `GEMINI_API_KEY` is unset. See DECISIONS.md D-005/D-010.
 
 ## Tracking
 
@@ -60,4 +62,4 @@ They fall back to console logging / no-op only when the `GA4_*` / `NEXT_PUBLIC_G
 
 ## Deploy
 
-Connected to Vercel with auto-deploy on push to `main`. Production env vars (Settings → Environment Variables): `DATABASE_URL` + `DATABASE_AUTH_TOKEN` (Turso), and `GA4_MEASUREMENT_ID` + `GA4_API_SECRET` + `GA4_DEBUG_MODE` for live server-side tracking.
+Connected to Vercel with auto-deploy on push to `main`. Production env vars (Settings → Environment Variables): `DATABASE_URL` + `DATABASE_AUTH_TOKEN` (Turso), `GA4_MEASUREMENT_ID` + `GA4_API_SECRET` + `GA4_DEBUG_MODE` for live server-side tracking, `NEXT_PUBLIC_GTM_ID` for client-side GTM, and `GEMINI_API_KEY` for live AI lead scoring.

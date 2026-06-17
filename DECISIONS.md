@@ -90,12 +90,12 @@ Separating these flows from the first click means: (a) users self-qualify, (b) w
 | Phone provided | +15 | Willing to be called = warmer lead |
 | Company name provided | +15 | Established business, not just curious |
 
-**How AI could improve this (next iteration):**
-An LLM (e.g., Claude API) could analyze the free-text "notes" field from the sales contact form for purchase-intent signals. Example: "POS cihazım bozuldu, acil ihtiyacım var" = urgency signal worth +20 extra points. The integration point is already in `lib/scoring.ts` — adding an async `aiScoreBoost(notes)` function is the only change needed.
+**AI layer on top — live (not mocked):**
+`lib/ai-scoring.ts` calls **Google Gemini** (`gemini-2.5-flash`) to read the free-text "notes" field from the sales-contact form and classify its purchase-intent/urgency. It returns a bounded, explainable boost — `none/low/high → +0/+10/+20` — that the API route adds on top of the rule score (`aiScore` + `aiReason` persisted per lead, shown in the dashboard breakdown). Example: "POS cihazım bozuldu, acil ihtiyacım var" → `high`, +20, reason "POS bozuk, acil ihtiyaç". The LLM only *classifies*; the points per class are fixed in code, so the score stays auditable. Degrades gracefully to +0 when there's no note or no API key.
 
-**Trade-off considered:** Weighted scoring vs. ML. Chose explicit weights because the business rules are well-understood for POS sales.
+**Why a hybrid (rules + AI), not pure ML:** the structured rules work from day one with zero historical data and are fully explainable to the marcom team; the LLM adds the one thing rules can't do — read prose — without making the whole score a black box.
 
-**Presentation note:** "I could plug in an LLM here, and I know exactly where — but I'd need 3 months of real conversion data before a model would outperform these rules."
+**Presentation note:** "The score is rule-based and explainable, but I layered a live LLM on top to read the free-text note — submit 'POS'um bozuldu acil' and watch the score jump +20 with the AI's reason shown in the breakdown."
 
 ---
 
@@ -167,7 +167,7 @@ The brief explicitly asks to call out where AI was used. Two distinct places:
 
 **1. AI used to *build* this MVP.** I used Claude (Anthropic) as a pair-programmer: scaffolding components, drafting Turkish landing-page copy, and sanity-checking the scoring rules. The architecture decisions, trade-offs, and the rule weights themselves were mine — the AI accelerated execution, this doc records the reasoning.
 
-**2. AI as a *future product* feature.** The scoring engine has a designed insertion point for an LLM: an async `aiScoreBoost(notes)` in `lib/scoring.ts` that reads the free-text `notes` from the sales-contact form and adds points for purchase-intent/urgency signals (e.g. "POS cihazım bozuldu, acil ihtiyacım var" → +20). It's a future iteration — rule-based scoring ships first because it works with zero historical data and is explainable; an LLM boost is additive once we have real notes to learn from.
+**2. AI *in the product* — live.** `lib/ai-scoring.ts` calls Google Gemini (`gemini-2.5-flash`) on every sales-contact submission: it classifies the free-text `notes` for purchase-intent/urgency and adds a bounded, explainable boost (`none/low/high → +0/+10/+20`) on top of the rule score. The result (`aiScore` + the model's one-line `aiReason`) is persisted and shown in the dashboard's score breakdown. The LLM only classifies; points per class are fixed in code, so the score stays auditable and never becomes a black box. Falls back to +0 when there's no note or no API key. (Gemini rather than Claude only because no Claude API key was available during the build — the integration is provider-agnostic.)
 
 ---
 

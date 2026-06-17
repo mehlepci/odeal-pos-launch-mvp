@@ -15,7 +15,7 @@
 - LP'yi gez: hero, iki CTA — **"Hemen Başvur"** (self-serve) vs **"Sizi Arayalım"** (sales). Responsive olduğunu göster (pencereyi daralt).
 - DevTools → Console aç: bir CTA'ya tıkla → `cta_click` event'inin `dataLayer`'a düştüğünü göster. *"Client tarafı GTM `dataLayer`'a yazıyor; canlı bir GTM container (`GTM-P7QJ6PFN`) bunları GA4'e iletiyor — GA4 Realtime'da görünüyor. Aynı container'dan Meta Pixel / Google Ads kod deploy etmeden eklenebilir. Server tarafı da — birazdan göstereceğim — gerçek GA4'e gidiyor."*
 - **`/basvur`**: 3 adımlı form — her adımda `form_step_complete` event'i (akış başına drop-off ölçmek için). Son adımı doldur, **Başvur**.
-- **`/iletisim`**: kısa form (düşük friction, amaç telefon yakalamak). Notes alanına *"POS'um bozuldu acil"* yaz — bu, AI scoring iterasyonu için köprü.
+- **`/iletisim`**: kısa form (düşük friction, amaç telefon yakalamak). Notes alanına *"POS'um bozuldu, acil ihtiyacım var"* yaz → **canlı AI** bu notu okuyup skora +20 bindirecek (dashboard'da göstereceğiz).
 
 ## 7:00–11:00 · API, DB & Scoring (kod + canlı)
 - `app/api/leads/route.ts`: POST → validate → `scoreLead()` → Prisma ile DB'ye yaz → **server-side** `lead_created` GA4 event'i.
@@ -29,11 +29,12 @@
 - **5 metrik, her biri bir aksiyona bağlı:** Toplam Lead (2.500 pace), Self-serve vs Arayalım (kanal), Yüksek Kalite (skor≥70), Bu Hafta vs Geçen Hafta.
 - Grafikler: günlük trend (30 gün), UTM kaynak dağılımı.
 - Lead tablosu: akış + skor filtreleri. *"Az önce gönderdiğimiz lead burada, skoruyla."* (demo lead'i göster, refresh.)
+- **⭐ CANLI AI ANI:** Az önce *"POS'um bozuldu acil"* notuyla gönderdiğin lead'in satırına tıkla → skor dökümü açılır. Kural puanlarının yanında **🤖 AI aciliyet sinyali +20** ve Gemini'nin tek cümlelik gerekçesi (*"POS bozuk, acil ihtiyaç…"*) görünür. *"Bu mock değil — her başvuruda Gemini notu okuyup skoru gerçekten değiştiriyor; ama puanı kod sabitliyor, yani kara kutu değil, açıklanabilir."*
 - *"Neden bu 5 metrik?"* → DECISIONS D-008: volume + kalite + kanal + pace; vanity'yi yakalar.
 
 ## 16:00–19:00 · Trade-off'lar & Sonraki İterasyon
-- En savunulabilir 3 trade-off: Turso vs Postgres, kural vs ML scoring, hybrid tracking.
-- AI kullanımı: (1) bu MVP'yi Claude ile hızlı yazdım, (2) üründe `aiScoreBoost(notes)` ile aciliyet sinyali — entegrasyon noktası kodda hazır.
+- En savunulabilir 3 trade-off: Turso vs Postgres, kural+AI hibrit scoring (saf ML değil), hybrid tracking.
+- AI kullanımı: (1) bu MVP'yi Claude ile hızlı yazdım, (2) **üründe canlı**: `lib/ai-scoring.ts` her sales başvurusunda Gemini ile notu okuyup açıklanabilir +puan biniyor (az önce dashboard'da gösterdim). Puanlar kodda sabit → kara kutu değil.
 - Sonraki adım (öncelik sırası): **CRM handoff** → lead status pipeline → Meta CAPI / Google Ads conversion import (GA4 server-side zaten canlı) → cost-per-lead → pace göstergesi.
 
 ## 19:00–20:00 · Kapanış

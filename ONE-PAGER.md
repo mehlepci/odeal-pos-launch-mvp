@@ -28,7 +28,7 @@ Karma müşteri kazanım modeli: bazı KOBİ'ler satış ekibiyle konuşmak, baz
 
 ### AI/LLM Kullanımı
 - **Bu MVP'yi geliştirirken:** Claude (Anthropic) ile kod üretimi, scoring kuralları ve copy taslakları hızlandırıldı; kararlar ve trade-off'lar tarafımca verildi ve DECISIONS.md'de gerekçelendirildi.
-- **Üründe sonraki adım:** `lib/scoring.ts` içine async `aiScoreBoost(notes)` — sales formundaki serbest-metin `notes` alanını LLM ile analiz edip aciliyet sinyali (örn. "POS'um bozuldu, acil") için +puan. Entegrasyon noktası kodda hazır.
+- **Üründe — canlı:** `lib/ai-scoring.ts`, her sales-contact başvurusunda **Google Gemini** (`gemini-2.5-flash`) ile serbest-metin `notes` alanını okuyup aciliyet/satın alma niyetini sınıflandırıyor; kural skoruna **açıklanabilir** bir ek puan biniyor (`none/low/high → +0/+10/+20`). Sonuç (`aiScore` + modelin tek cümlelik `aiReason`'ı) DB'ye yazılıyor ve dashboard skor dökümünde görünüyor. LLM yalnızca sınıflandırır, puanlar kodda sabittir → skor kara kutu olmaz. Not yoksa/anahtar yoksa +0'a düşer. (Claude değil Gemini, çünkü build sırasında Claude API erişimi yoktu — entegrasyon sağlayıcıdan bağımsız.)
 
 ### Bir Sonraki İterasyon
 1. **CRM handoff** — lead oluşunca HubSpot/Salesforce'a POST; satış dashboard'a bakmak zorunda kalmaz.
